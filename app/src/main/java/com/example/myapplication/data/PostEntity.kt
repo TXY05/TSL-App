@@ -74,7 +74,32 @@ data class LogisticsEntity(
     val endDate: LocalDate?
 )
 
-
+@Entity(
+    tableName = "people",
+    foreignKeys = [
+        ForeignKey(
+            entity = PostEntity::class,
+            parentColumns = ["postId"],
+            childColumns = ["postOwnerId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("postOwnerId")]
+)
+data class PeopleEntity(
+    @PrimaryKey(autoGenerate = true)
+    val peopleId: Int = 0,
+    val postOwnerId: Int,
+    val description: String,
+    val amount : String,
+    val weight: String,
+    val peopleAmount : String,
+    val arrivePay : String,
+    val departDate: LocalDate?,
+    val arriveDate: LocalDate?,
+    val departPeople: String,
+    val arrivePeople: String
+)
 
 class Converters {
     @TypeConverter

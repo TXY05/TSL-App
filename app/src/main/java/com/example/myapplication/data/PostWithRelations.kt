@@ -16,6 +16,11 @@ data class PostWithRelations(
         parentColumn = "postId",
         entityColumn = "postOwnerId"
     )
-    val logistics: List<LogisticsEntity>
+    val logistics: List<LogisticsEntity>,
 
+    @Relation(
+        parentColumn = "postId",
+        entityColumn = "postOwnerId"
+    )
+    val peoples: List<PeopleEntity>
 )

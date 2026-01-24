@@ -9,15 +9,15 @@ import kotlinx.coroutines.runBlocking
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
-    private val repo = PostRepository(db.postDao(), db.itemDao(), db.logisticsDao())
+    private val repo = PostRepository(db.postDao(), db.itemDao(), db.logisticsDao(),db.peopleDao())
 
     val allPosts = repo.getAllPosts().asLiveData()
 
     val allPostsWithRelations = repo.allPostsWithRelations
 
-    fun savePost(post: PostEntity, items: List<ItemEntity>, logistics: List<LogisticsEntity>) =
+    fun savePost(post: PostEntity, items: List<ItemEntity>, logistics: List<LogisticsEntity>,peoples: List<PeopleEntity>) =
         viewModelScope.launch {
-            repo.savePost(post, items, logistics)
+            repo.savePost(post, items, logistics, peoples)
         }
 
     fun getPostWithRelations(postId: Int): PostWithRelations? = runBlocking {

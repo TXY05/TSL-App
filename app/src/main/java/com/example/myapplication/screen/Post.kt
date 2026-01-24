@@ -62,6 +62,8 @@ import com.example.myapplication.data.ItemData
 import com.example.myapplication.data.ItemEntity
 import com.example.myapplication.data.LogisticsData
 import com.example.myapplication.data.LogisticsEntity
+import com.example.myapplication.data.PeopleData
+import com.example.myapplication.data.PeopleEntity
 import com.example.myapplication.data.PostEntity
 import com.example.myapplication.data.PostViewModel
 import java.text.SimpleDateFormat
@@ -69,6 +71,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
+import kotlin.Int
+import kotlin.String
 import kotlin.math.roundToInt
 
 @SuppressLint("MutableCollectionMutableState")
@@ -101,6 +105,7 @@ fun Post(
 
     var items by remember { mutableStateOf(mutableListOf(ItemData())) }
     var logisticsItems = remember { mutableStateListOf(LogisticsData()) }
+    var peopleItems = remember { mutableStateListOf(PeopleData()) }
 
     val formatter = DateTimeFormatter.ofPattern("EEEE, d/L/uuuu")
 
@@ -166,8 +171,24 @@ fun Post(
                             startDate = log.startDate?.format(SaveDateFormatter) ?: "",
                             endDate = log.endDate?.format(SaveDateFormatter) ?: ""
                         )
-                    })
-
+                    }
+                )
+                peopleItems.clear()
+                peopleItems.addAll(
+                    it.peoples.map { peo ->
+                        PeopleData(
+                            description = peo.description,
+                            amount = peo.amount,
+                            weight = peo.weight,
+                            peopleAmount = peo.peopleAmount,
+                            arrivePay = peo.arrivePay,
+                            departDate = peo.departDate?.format(SaveDateFormatter) ?: "",
+                            arriveDate = peo.arriveDate?.format(SaveDateFormatter) ?: "",
+                            departPeople = peo.departPeople,
+                            arrivePeople = peo.arrivePeople
+                        )
+                    }
+                )
             }
         }
     }
@@ -211,14 +232,13 @@ fun Post(
                         )
                     }
 
-                    val logisticsEntities = logisticsItems.map {
+                    val logisticsEntities = logisticsItems.map { it ->
                         LogisticsEntity(
                             postOwnerId = postId ?: 0,
                             description = it.description,
                             person = it.person,
                             weight = it.weight,
                             amount = it.amount,
-
                             startDate = it.startDate.takeIf { s -> s.isNotBlank() }?.let {
                                 runCatching {
                                     LocalDate.parse(
@@ -238,7 +258,36 @@ fun Post(
                         )
                     }
 
-                    viewModel.savePost(postEntity, itemEntities, logisticsEntities)
+                    val peopleEntities = peopleItems.map { it ->
+                        PeopleEntity(
+                            postOwnerId = postId ?: 0,
+                            description = it.description,
+                            amount = it.amount,
+                            weight = it.weight,
+                            peopleAmount=it.peopleAmount,
+                            arrivePay=it.arrivePay,
+                            departDate = it.departDate.takeIf { s -> s.isNotBlank() }?.let {
+                                runCatching {
+                                    LocalDate.parse(
+                                        it,
+                                        SaveDateFormatter
+                                    )
+                                }.getOrNull()
+                            },
+                            arriveDate = it.arriveDate.takeIf { s -> s.isNotBlank() }?.let {
+                                runCatching {
+                                    LocalDate.parse(
+                                        it,
+                                        SaveDateFormatter
+                                    )
+                                }.getOrNull()
+                            },
+                            departPeople = it.departPeople,
+                            arrivePeople = it.arrivePeople
+                        )
+                    }
+
+                    viewModel.savePost(postEntity, itemEntities, logisticsEntities,peopleEntities)
                     Toast.makeText(context, "已保存", Toast.LENGTH_SHORT).show()
                     onBack()
                 }) {
@@ -632,6 +681,8 @@ fun Post(
                 }
 
 
+
+
                 // --- Logistics Section ---
                 itemsIndexed(logisticsItems) { index, logItem ->
                     Column(
@@ -863,6 +914,283 @@ fun Post(
                     }
                 }
 
+
+                // --- Logistics Section ---
+                itemsIndexed(peopleItems) { index, peoItem ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${index + 1}.",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontSize = 18.sp
+                            )
+
+                            OutlinedTextField(
+                                value = peoItem.description,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(description = newValue)
+
+                                },
+                                label = { Text("包裹内容") },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = peoItem.amount,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(amount = newValue)
+
+                                },
+                                label = { Text("合计数量", fontSize = 12.sp) },
+                                modifier = Modifier.width(100.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
+
+                            IconButton(onClick = {
+                                peopleItems.removeAt(index)
+                            }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "删除",
+                                    tint = Color.Red
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // --- Dates ---
+                        var showStartPicker by remember { mutableStateOf(false) }
+                        var showEndPicker by remember { mutableStateOf(false) }
+
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = peoItem.weight,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(weight = newValue)
+
+                                },
+                                label = { Text("重量kg") },
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = peoItem.peopleAmount,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(peopleAmount = newValue)
+
+                                },
+                                label = { Text("人带", fontSize = 14.sp) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
+
+                            OutlinedTextField(
+                                value = peoItem.arrivePay,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(arrivePay = newValue)
+
+                                },
+                                label = { Text("到付", fontSize = 14.sp) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
+
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = peoItem.departDate,
+                                    onValueChange = { newValue ->
+                                        peopleItems[index] =
+                                            peopleItems[index].copy(departDate = newValue)
+
+                                    },
+                                    label = { Text("起飞", fontSize = 14.sp) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    readOnly = true,
+                                    singleLine = true,
+                                )
+                                // Transparent overlay to detect taps
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable { showStartPicker = true })
+                            }
+
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = peoItem.arriveDate,
+                                    onValueChange = { newValue ->
+                                        peopleItems[index] =
+                                            peopleItems[index].copy(arriveDate = newValue)
+
+                                    },
+                                    label = { Text("落地", fontSize = 14.sp) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    readOnly = true,
+                                    singleLine = true,
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable { showEndPicker = true })
+                            }
+
+                        }
+
+                        // --- DatePickerDialogs (they now show properly) ---
+                        if (showStartPicker) {
+                            val startPickerState = rememberDatePickerState(
+                                initialSelectedDateMillis = selectedDate.toEpochDay() * 24 * 60 * 60 * 1000
+                            )
+                            DatePickerDialog(
+                                onDismissRequest = { showStartPicker = false },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        startPickerState.selectedDateMillis?.let { millis ->
+                                            val formatted = SimpleDateFormat(
+                                                "dd/MM/yy", Locale.getDefault()
+                                            ).format(Date(millis))
+                                            peopleItems[index] = peopleItems[index].copy(
+                                                departDate = formatted
+                                            )
+                                        }
+
+                                        showStartPicker = false
+                                    }) {
+                                        Text("OK")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showStartPicker = false }) {
+                                        Text("Cancel")
+                                    }
+                                }) {
+                                DatePicker(
+                                    state = startPickerState, showModeToggle = false
+                                )
+                            }
+                        }
+
+
+                        if (showEndPicker) {
+                            val endPickerState = rememberDatePickerState(
+                                initialSelectedDateMillis = selectedDate.toEpochDay() * 24 * 60 * 60 * 1000
+                            )
+                            DatePickerDialog(
+                                onDismissRequest = { showEndPicker = false },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        endPickerState.selectedDateMillis?.let { millis ->
+                                            val formatted = SimpleDateFormat(
+                                                "dd/MM/yy", Locale.getDefault()
+                                            ).format(Date(millis))
+                                            peopleItems[index] = peopleItems[index].copy(
+                                                arriveDate = formatted
+                                            )
+                                        }
+                                        showEndPicker = false
+                                    }) {
+                                        Text("OK")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showEndPicker = false }) {
+                                        Text("Cancel")
+                                    }
+                                }) {
+                                DatePicker(
+                                    state = endPickerState, showModeToggle = false
+                                )
+                            }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = peoItem.departPeople,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(departPeople = newValue)
+
+                                },
+                                label = { Text("带货人") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = peoItem.arrivePeople,
+                                onValueChange = { newValue ->
+                                    peopleItems[index] =
+                                        peopleItems[index].copy(arrivePeople = newValue)
+
+                                },
+                                label = { Text("收货人", fontSize = 14.sp) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                            )
+
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Button(onClick = {
+                            peopleItems.add(PeopleData())
+                        }) {
+                            Text("添加人带 (+)")
+                        }
+
+                    }
+                }
+
                 item {
                     // 重新计算客户总金额（含运费）
                     val totalCustomerAmount = items.sumOf {
@@ -1091,7 +1419,7 @@ fun Post(
                             .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
                             .background(Color(0xFFB2F2A1)) // Light green background
                             .padding(12.dp)
-                    ){
+                    ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 text = "马币兑换人民币 （客户支付）",

@@ -137,8 +137,19 @@ fun Search(
                                 )
                             }
 
+                            val peoplesFields = relation.peoples.flatMap { peo ->
+                                listOfNotNull(
+                                    peo.departPeople,
+                                    peo.arrivePeople,
+                                    peo.amount.toString(),
+                                    peo.weight.toString(),
+                                    peo.description,
+
+                                )
+                            }
+
                             // 🔹 Combine all searchable text
-                            val allFields = postFields + itemFields + logisticsFields
+                            val allFields = postFields + itemFields + logisticsFields + peoplesFields
 
                             // 🔹 Text search
                             val matchQuery = allFields.any { it.contains(query, ignoreCase = true) }
