@@ -16,14 +16,7 @@ data class PostEntity(
     val description: String,
     val customerShipment: String,
     val factoryShipment: String,
-    val serviceCharge: Double,
-    val r2mRate: String,
-    val r2mPerson: String,
-    val r2mDate: LocalDate?,
-    val m2rRate: String,
-    val m2rPerson: String,
-    val m2rDate: LocalDate?,
-    val totalProfit: Double
+
 )
 
 @Entity(
